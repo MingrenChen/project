@@ -16,6 +16,10 @@ class mSection {
     ArrayList<mSection> subSection = new ArrayList<mSection>();
   }
 
+  /**
+   * Add a subsection within a section, it helps customers to find products easier.
+   * @param s the section
+   */
   void addSubsection(mSection s) {
     this.subSection.add(s);
   }

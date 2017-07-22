@@ -17,6 +17,8 @@ public class PayList {
 
   private static int nextID = 1;
 
+  private static double totalRevenue = 0.0;
+
   /**
    * prize for this pay list.
    */
@@ -42,7 +44,12 @@ public class PayList {
 
   }
 
-  void addItem(int UPC) throws OperationFailedException {
+    /**
+     * Add items to the paylist for the customers.
+     * @param UPC the universal product code
+     * @throws OperationFailedException
+     */
+  void addItem(String UPC) throws OperationFailedException {
     int num;
     Product item = allItems.getStoreRecord().getProduct(UPC);
     if (!payList.containsKey(item)) {
@@ -57,7 +64,12 @@ public class PayList {
     }
   }
 
-  void cancelItem(int UPC) throws OperationFailedException {
+    /**
+     * Cancel items in the paylist for a customer.
+     * @param UPC the universal product code
+     * @throws OperationFailedException
+     */
+  void cancelItem(String UPC) throws OperationFailedException {
       int num;
       Product item = allItems.getStoreRecord().getProduct(UPC);
       if (!payList.containsKey(item)) {
@@ -72,7 +84,12 @@ public class PayList {
       }
   }
 
-
+    /**
+     * Check the information of a certain purchase, it includes the cardnumber, items they bought, price of the items
+     * , date and time.
+     * @param type payment type
+     * @param cNumber the cardnumber
+     */
   void purchase(int type, int cNumber) {
       int prize = 0;
       paymentType = type;
@@ -84,6 +101,9 @@ public class PayList {
     }
     for (Product product : payList.keySet()) {
         prize += product.getCost() * payList.get(product);
+    }
+    for (Product product : payList.keySet()){
+        totalRevenue += product.getPrize()* payList.get(product);
     }
     allItems.getStoreRecord().addProfit(prize - totalPrize);
   }

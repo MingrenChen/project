@@ -1,3 +1,4 @@
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -8,27 +9,34 @@ import java.time.temporal.ChronoUnit;
 /**
  * One kind of the product in the store.
  */
-public class Product {
+public class Product implements Serializable {
+
+  private LocalDate today = LocalDate.now();
 
   private HashMap<LocalDate, Double> PrizeHistory = new HashMap<>();
   private String name;
-  private mSection section;
-  private mSection subsection;
+  private String section;
+  private String subsection;
   private int aisle;
   private int threshold;
   private double prize;
   private int pendingNumber = 0;
-  private HashMap<ArrayList<LocalDate>,Discount> discounts = new HashMap<>();
+  private Discount discounts = null;
   private String distributor;
-  private ArrayList orderHistory;
+  private ArrayList orderHistory = new ArrayList();
   private double cost;
-  private int upc;
+  private String upc;
   private int itemNum;
 
 
-  Product(int productUpc, double productCost,String productName, double productPrize, mSection productSection,
-          mSection pSubsection, int aisle1, int r, String productDistributor, ArrayList pOderHistory) {
-    upc = productUpc;
+
+  Product(double productCost,String productName, double productPrize, String productSection,
+      String pSubsection, int aisle1, int r, String productDistributor) {
+    upc = Integer.toString(allItems.getStoreRecord().getNextUPC());
+    int zeroNum = 12 - upc.length();
+    for(int i = zeroNum; i > 0; i--) {
+      upc = "0" + upc;
+    }
     cost = productCost;
     name = productName;
     prize = productPrize;
@@ -37,7 +45,6 @@ public class Product {
     aisle = aisle1;
     threshold = r;
     distributor = productDistributor;
-    orderHistory = pOderHistory;
     allItems.getStoreRecord().addProduct(this);
   }
 
@@ -54,20 +61,12 @@ public class Product {
     return name;
   }
 
-  public mSection getSection() {
+  public String getSection() {
     return section;
   }
 
-  public void setSection(mSection section) {
-    this.section = section;
-  }
-
-  public mSection getSubsection() {
+  public String getSubsection() {
     return subsection;
-  }
-
-  public void setSubsection(mSection subsection) {
-    this.subsection = subsection;
   }
 
   public int getAisle() {
@@ -80,10 +79,6 @@ public class Product {
 
   public int getThreshold() {
     return threshold;
-  }
-
-  public void setThreshold(int threshold) {
-    this.threshold = threshold;
   }
 
   public double getPrize() {
@@ -103,13 +98,11 @@ public class Product {
   }
 
 
-  public HashMap<ArrayList<LocalDate>, Discount> getDiscounts() {
+  public Discount getDiscounts() {
     return discounts;
   }
 
-  public void setDiscounts(HashMap<ArrayList<LocalDate>, Discount> discounts) {
-    this.discounts = discounts;
-  }
+
 
   public String getDistributor() {
     return distributor;
@@ -135,11 +128,11 @@ public class Product {
     this.cost = cost;
   }
 
-  public long getUpc() {
+  public String getUpc() {
     return upc;
   }
 
-  public void setUpc(int upc) {
+  public void setUpc(String upc) {
     this.upc = upc;
   }
 
@@ -151,33 +144,58 @@ public class Product {
     this.itemNum = itemNum;
   }
 
+  /**
+   * Add a new product into the store.
+   */
   void addNew() {
     itemNum += threshold * 3;
     pendingNumber = 0;
   }
 
+  /**
+   * Return null, since the method just remove the item from the shopping cart.
+   * @param num number of items the customer buy.
+   * @return null
+   */
   String removeItem(int num) {
     itemNum -= num;
     if (!(itemNum > threshold) && (pendingNumber==0)) {
       pendingNumber = threshold * 3;
-      LocalDate today = LocalDate.now();
       orderHistory.add(today);
       return null;
     }
     return null;
   }
 
+  /**
+   * Add a discount to a product between a period of time, after that, the price of the product will follow the discount
+   * plan during that period of time.
+   * @param d the discount
+   * @param start the date the discount starts
+   * @param end the date the discount ends
+   */
   void addDiscount (Discount d, LocalDate start, LocalDate end){
-    ArrayList<LocalDate> discountPeriod = new ArrayList<>();
-    discountPeriod.add(start);
-    discountPeriod.add(end);
-    discounts.put(discountPeriod,d);
-    for ( LocalDate date = start; date.isBefore(end); date.plus(1,ChronoUnit.DAYS)){
-      if (PrizeHistory.containsKey(date)){
-        PrizeHistory.replace(date,this.checkout(1));
-      }else{
-        PrizeHistory.put(date,this.checkout(1));
+    discounts = d;
+    d.setStartDate(start);
+    d.setEndDate(end);
+    if (PrizeHistory.containsKey(start)){
+      PrizeHistory.replace(start,this.checkout(1));
+      PrizeHistory.put(end.plus(1,ChronoUnit.DAYS),prize );
+    }else{
+      PrizeHistory.put(start,this.checkout(1));
+      PrizeHistory.put(end.plus(1,ChronoUnit.DAYS),prize );
+    }
+  }
+
+  void deleteDiscount() throws OperationFailedException {
+    if (!(discounts == null)) {
+      LocalDate end = discounts.getEndDate();
+      if (today.isBefore(end)) {
+        PrizeHistory.replace(today, prize);
+        PrizeHistory.remove(end.plus(1, ChronoUnit.DAYS));
       }
+    } else{
+      throw new OperationFailedException("Discount does not exit.");
     }
   }
 
@@ -206,10 +224,15 @@ public class Product {
 //    }
 //  }
 
+  /**
+   * Return the price that the customer needs to pay at checkout.
+   * @param num the number of items the customer buy
+   * @return the price in total
+   */
   double checkout(int num) {
-    int returnPrize = 0;
-    for (Discount d : discounts.values()) {
-      returnPrize += d.getPrize(prize, num);
+    Double returnPrize = prize * num;
+    if (today.isBefore(discounts.getEndDate())){
+      returnPrize = discounts.getPrize(prize,num);
     }
     return returnPrize;
   }
